@@ -4,6 +4,6 @@ namespace VelodyneLidarViewer.Data
 {
     public class VelodynePacket
     {
-        public NativeSlice<byte> data;
+        public NativeArray<byte> data;
     }
 }
