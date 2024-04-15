@@ -54,7 +54,10 @@ namespace VelodyneLidarViewer.Driver
             _scan = new VelodyneScan(_config.npackets);
             for (int i = 0; i < _config.npackets; i++)
             {
-                _scan.packets[i].data = new NativeSlice<byte>(_data, i * VelodyneLidarDataPacketLength, VelodyneLidarDataPacketLength);
+                _scan.packets[i] = new VelodynePacket()
+                {
+                    data = _data.GetSubArray(VelodyneLidarDataPacketLength * i, VelodyneLidarDataPacketLength)
+                };
             }
 
             _packetCount = 0;
@@ -78,17 +81,17 @@ namespace VelodyneLidarViewer.Driver
                 return;
             }
 
-            NativeArray<byte> tmpData = new NativeArray<byte>(newData, Allocator.Temp);
+            NativeArray<byte> tmpData = new NativeArray<byte>(newData, Allocator.TempJob);
             unsafe
             {
-                void* dstPtr = NativeArrayUnsafeUtility.GetUnsafePtr(_data);
+                void* dstPtr = NativeArrayUnsafeUtility.GetUnsafePtr(_scan.packets[_packetCount].data);
                 void* srcPtr = NativeArrayUnsafeUtility.GetUnsafePtr(tmpData);
 
-                dstPtr = (byte*)dstPtr + VelodyneLidarDataPacketLength * _packetCount;
                 srcPtr = (byte*)srcPtr + VelodyneLidarDataPacketStartIndex;
 
                 UnsafeUtility.MemCpy(dstPtr, srcPtr, VelodyneLidarDataPacketLength * UnsafeUtility.SizeOf<byte>());
             }
+            tmpData.Dispose();
             
             if (++_packetCount >= _config.npackets)
             {
