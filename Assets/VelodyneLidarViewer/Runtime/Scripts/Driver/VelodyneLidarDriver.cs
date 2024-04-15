@@ -95,6 +95,7 @@ namespace VelodyneLidarViewer.Driver
             
             if (++_packetCount >= _config.npackets)
             {
+                onReceived?.Invoke();
                 _packetCount = 0;
             }
 
