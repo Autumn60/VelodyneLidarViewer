@@ -35,11 +35,11 @@ namespace VelodyneLidarViewer.Driver
 
         private int _packetCount;
 
-        private const int VelodyneLidarUdpPacketLength = 1248;
         private const int VelodyneLidarDataPacketLength = 1206;
-        private const int VelodyneLidarDataPacketStartIndex = 42;
 
         public VelodyneScan scan => _scan;
+
+        private float _lastTime;
 
         private void Awake()
         {
@@ -50,7 +50,7 @@ namespace VelodyneLidarViewer.Driver
 
             _client = new UdpClient(_port);
             _data = new NativeArray<byte>(VelodyneLidarDataPacketLength * _config.npackets, Allocator.Persistent);
-            
+
             _scan = new VelodyneScan(_config.npackets);
             for (int i = 0; i < _config.npackets; i++)
             {
@@ -75,30 +75,20 @@ namespace VelodyneLidarViewer.Driver
 
             byte[] newData = client.EndReceive(result, ref ipEnd);
 
-            if(newData.Length != VelodyneLidarUdpPacketLength)
+            if(newData.Length != VelodyneLidarDataPacketLength)
             {
                 client.BeginReceive(OnUdpReceived, client);
                 return;
             }
 
-            NativeArray<byte> tmpData = new NativeArray<byte>(newData, Allocator.TempJob);
-            unsafe
-            {
-                void* dstPtr = NativeArrayUnsafeUtility.GetUnsafePtr(_scan.packets[_packetCount].data);
-                void* srcPtr = NativeArrayUnsafeUtility.GetUnsafePtr(tmpData);
+            _scan.packets[_packetCount].data.CopyFrom(newData);
 
-                srcPtr = (byte*)srcPtr + VelodyneLidarDataPacketStartIndex;
-
-                UnsafeUtility.MemCpy(dstPtr, srcPtr, VelodyneLidarDataPacketLength * UnsafeUtility.SizeOf<byte>());
-            }
-            tmpData.Dispose();
-            
-            if (++_packetCount >= _config.npackets)
+            _packetCount++;
+            if(_packetCount >= _config.npackets)
             {
                 onReceived?.Invoke();
                 _packetCount = 0;
             }
-
             client.BeginReceive(OnUdpReceived, client);
         }
 
